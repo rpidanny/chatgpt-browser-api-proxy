@@ -1,24 +1,16 @@
 /* eslint-disable camelcase */
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { chromium, Page } from 'playwright';
-import { ReadableStreamDefaultReadResult } from 'stream/web';
+import { Browser, chromium } from 'playwright';
 
 @Injectable()
 export class ChatGPTClient {
-  textDecoder = new TextDecoder();
   baseUrl = 'https://chat.openai.com';
-  page: Page;
+  browser: Browser;
 
   async init() {
     console.log('Initializing ChatGPTClient');
-    const browser = await chromium.launch({ headless: true });
-    const context = await browser.newContext();
-
-    this.page = await context.newPage();
-
-    await this.page.goto(this.baseUrl);
-
+    this.browser = await chromium.launch({ headless: false });
     console.log('ChatGPTClient initialized');
   }
 
@@ -28,12 +20,7 @@ export class ChatGPTClient {
     const headers = this.getHeaders();
     const payload = this.generateConversationPayload(prompt);
 
-    const resp = await this.call('POST', url, headers, payload);
-
-    const reader = resp.body?.getReader();
-    if (!reader) throw new Error('No reader found');
-
-    const answer = await this.handleStream(reader);
+    const answer = await this.call('POST', url, headers, payload);
 
     return answer;
   }
@@ -43,34 +30,6 @@ export class ChatGPTClient {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${process.env.OPENAI_API_TOKEN}`,
     };
-  }
-
-  private async handleStream(
-    stream: ReadableStreamDefaultReader
-  ): Promise<string> {
-    let chunk: ReadableStreamDefaultReadResult<Uint8Array>;
-    let answer = '';
-
-    while ((chunk = await stream.read()).done === false) {
-      this.textDecoder
-        .decode(chunk.value)
-        .split('data: ')
-        .map((e) => e.trim().replace(/^\n+/, '').replace(/\n+$/, ''))
-        .filter((e) => e.length > 0 || e !== '[DONE]')
-        .map((e) => {
-          try {
-            const parsedEvent = JSON.parse(e);
-
-            if (parsedEvent.message.author.role === 'assistant') {
-              answer = parsedEvent.message.content.parts.join(' ');
-              return answer;
-            }
-            return '';
-          } catch (error) {}
-        });
-    }
-
-    return answer;
   }
 
   private generateConversationPayload(prompt: string) {
@@ -94,6 +53,7 @@ export class ChatGPTClient {
       timezone_offset_min: -120,
       history_and_training_disabled: false,
       supports_modapi: true,
+      stream: false
     };
   }
 
@@ -102,18 +62,56 @@ export class ChatGPTClient {
     url: string,
     headers?: Record<string, string>,
     body?: Record<string, unknown>
-  ): Promise<Response> {
-    return await this.page.evaluate(
+  ): Promise<string> {
+    const context = await this.browser.newContext();
+    const page = await context.newPage();
+    await page.goto(this.baseUrl);
+
+    const answer = await page.evaluate(
       async ({ method, url, headers, body }) => {
+        const textDecoder = new TextDecoder();
+
         const resp = await fetch(url, {
           method,
           headers,
           body: JSON.stringify(body),
         });
 
-        return resp;
+        if (resp.status !== 200)
+          throw new Error('Error while calling ChatGPT API');
+
+        const reader = resp.body?.getReader();
+        if (!reader) throw new Error('No reader found');
+
+        let chunk: ReadableStreamReadResult<Uint8Array>;
+        let answer = '';
+
+        while ((chunk = await reader.read()).done === false) {
+          textDecoder
+            .decode(chunk.value)
+            .split('data: ')
+            .map((e) => e.trim().replace(/^\n+/, '').replace(/\n+$/, ''))
+            .filter((e) => e.length > 0 || e !== '[DONE]')
+            .map((e) => {
+              try {
+                const parsedEvent = JSON.parse(e);
+
+                if (parsedEvent.message.author.role === 'assistant') {
+                  answer = parsedEvent.message.content.parts.join(' ');
+                  return answer;
+                }
+                return '';
+              } catch (error) {}
+            });
+        }
+
+        return answer;
       },
       { method, url, headers, body }
     );
+
+    context.close();
+
+    return answer;
   }
 }
