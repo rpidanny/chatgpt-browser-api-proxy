@@ -1,17 +1,20 @@
 /* eslint-disable camelcase */
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { Browser, chromium } from 'playwright';
 
 @Injectable()
 export class ChatGPTClient {
   baseUrl = 'https://chat.openai.com';
+  parentMessageId = randomUUID();
   browser: Browser;
 
+  constructor(@Inject(Logger) private readonly logger: Logger) {}
+
   async init() {
-    console.log('Initializing ChatGPTClient');
+    this.logger.log('Initializing ChatGPTClient');
     this.browser = await chromium.launch({ headless: false });
-    console.log('ChatGPTClient initialized');
+    this.logger.log('ChatGPTClient initialized');
   }
 
   async conversation(prompt: string): Promise<string> {
@@ -20,7 +23,12 @@ export class ChatGPTClient {
     const headers = this.getHeaders();
     const payload = this.generateConversationPayload(prompt);
 
-    const answer = await this.call('POST', url, headers, payload);
+    const { answer } = await this.call(
+      'POST',
+      url,
+      headers,
+      payload
+    );
 
     return answer;
   }
@@ -47,13 +55,11 @@ export class ChatGPTClient {
           },
         },
       ],
-      parent_message_id: randomUUID(),
-      // conversation_id: "32326597-ad27-470f-85a0-d4514551bd15",
+      parent_message_id: this.parentMessageId,
       model: 'text-davinci-002-render-sha',
       timezone_offset_min: -120,
       history_and_training_disabled: false,
       supports_modapi: true,
-      stream: false
     };
   }
 
@@ -62,12 +68,12 @@ export class ChatGPTClient {
     url: string,
     headers?: Record<string, string>,
     body?: Record<string, unknown>
-  ): Promise<string> {
+  ): Promise<{ answer: string; conversationId: string }> {
     const context = await this.browser.newContext();
     const page = await context.newPage();
     await page.goto(this.baseUrl);
 
-    const answer = await page.evaluate(
+    const { answer, conversationId } = await page.evaluate(
       async ({ method, url, headers, body }) => {
         const textDecoder = new TextDecoder();
 
@@ -85,6 +91,7 @@ export class ChatGPTClient {
 
         let chunk: ReadableStreamReadResult<Uint8Array>;
         let answer = '';
+        let conversationId = '';
 
         while ((chunk = await reader.read()).done === false) {
           textDecoder
@@ -93,11 +100,13 @@ export class ChatGPTClient {
             .map((e) => e.trim().replace(/^\n+/, '').replace(/\n+$/, ''))
             .filter((e) => e.length > 0 || e !== '[DONE]')
             .map((e) => {
+              console.log(e);
               try {
                 const parsedEvent = JSON.parse(e);
 
                 if (parsedEvent.message.author.role === 'assistant') {
                   answer = parsedEvent.message.content.parts.join(' ');
+                  conversationId = parsedEvent.message.conversation_id;
                   return answer;
                 }
                 return '';
@@ -105,13 +114,13 @@ export class ChatGPTClient {
             });
         }
 
-        return answer;
+        return { answer, conversationId };
       },
       { method, url, headers, body }
     );
 
-    context.close();
+    await context.close();
 
-    return answer;
+    return { answer, conversationId };
   }
 }

@@ -1,4 +1,4 @@
-import { DynamicModule, Global, Module } from '@nestjs/common';
+import { DynamicModule, Global, Logger, Module } from '@nestjs/common';
 
 import { ChatGPTClient } from './clients/chatgpt.client.js';
 
@@ -10,15 +10,16 @@ export class GlobalModule {
       module: GlobalModule,
       imports: [],
       providers: [
+        Logger,
         {
           provide: ChatGPTClient,
-          useFactory: async () => {
-            const client = new ChatGPTClient();
+          useFactory: async (logger: Logger) => {
+            const client = new ChatGPTClient(logger);
             await client.init();
 
             return client;
           },
-          inject: [],
+          inject: [Logger],
         },
       ],
       exports: [ChatGPTClient],
