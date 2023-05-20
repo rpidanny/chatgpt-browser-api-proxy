@@ -1,6 +1,6 @@
 {
   "name": "chatgpt-browser-api-proxy",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "A powerful API proxy that seamlessly integrates ChatGPT unofficial browser API with OpenAI, bypassing CloudFlare's anti-bot detection for uninterrupted access.",
   "author": "abhishek <@rpidanny>",
   "private": true,
