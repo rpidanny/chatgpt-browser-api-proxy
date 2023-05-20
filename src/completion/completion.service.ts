@@ -1,3 +1,4 @@
+/* eslint-disable camelcase */
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 
@@ -18,7 +19,9 @@ export class CompletionService {
     }
   }
 
-  private generateCompletionResponse(response: string): CompletionResponseV1DTO {
+  private generateCompletionResponse(
+    response: string
+  ): CompletionResponseV1DTO {
     return {
       id: randomUUID(),
       object: 'text_completion',
@@ -29,7 +32,7 @@ export class CompletionService {
           text: response,
           index: 0,
           logprobs: null,
-          finish_reason: 'length',
+          finish_reason: 'stop',
         },
       ],
       usage: {

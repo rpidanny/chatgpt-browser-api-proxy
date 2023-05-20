@@ -1,0 +1,14 @@
+{
+  "extends": ["@rpidanny/eslint-config-typescript"],
+  "rules": {
+    "simple-import-sort/imports": "error",
+    "simple-import-sort/exports": "error",
+    "arrow-parens": "off"
+  },
+  "parserOptions": {
+    "ecmaFeatures": {
+      "jsx": true,
+      "tsx": true
+    }
+  }
+}

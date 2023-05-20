@@ -1,3 +1,4 @@
+/* eslint-disable camelcase */
 import { Expose } from 'class-transformer';
 import {
   IsArray,
@@ -27,7 +28,7 @@ export class UsageV1DTO {
 export class MessageV1DTO {
   role: string;
   content: string;
-  name?: string
+  name?: string;
 }
 
 export class ChatCompletionRequestV1DTO {
@@ -36,7 +37,6 @@ export class ChatCompletionRequestV1DTO {
 
   @IsArray()
   messages!: MessageV1DTO[];
-
 
   @IsNumber()
   @IsOptional()

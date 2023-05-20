@@ -23,12 +23,7 @@ export class ChatGPTClient {
     const headers = this.getHeaders();
     const payload = this.generateConversationPayload(prompt);
 
-    const { answer } = await this.call(
-      'POST',
-      url,
-      headers,
-      payload
-    );
+    const { answer } = await this.call('POST', url, headers, payload);
 
     return answer;
   }

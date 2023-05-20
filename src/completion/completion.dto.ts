@@ -1,3 +1,4 @@
+/* eslint-disable camelcase */
 import { Expose } from 'class-transformer';
 import {
   IsBoolean,

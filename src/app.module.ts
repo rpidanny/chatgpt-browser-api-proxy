@@ -6,8 +6,8 @@ import {
 } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 
-import { CompletionModule } from './completion/completion.module.js';
 import { ChatModule } from './chat/chat.module.js';
+import { CompletionModule } from './completion/completion.module.js';
 import { GlobalModule } from './global/global.module.js';
 import { RequestLoggerMiddleware } from './global/middlewares/request-logger.js';
 

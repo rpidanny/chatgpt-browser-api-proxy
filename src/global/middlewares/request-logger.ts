@@ -1,5 +1,5 @@
 /* eslint-disable camelcase */
-import { Inject, Injectable, NestMiddleware, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, NestMiddleware } from '@nestjs/common';
 import { NextFunction, Request, Response } from 'express';
 
 const hrToMillis = ([s, ns]: [number, number]): number =>
